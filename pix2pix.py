@@ -39,7 +39,8 @@ class Pix2Pix():
 		self.img_shape = (self.img_rows, self.img_cols, self.channels)
 
 		# Configure data loader
-		self.dataset_name = 'semi-gan-final'
+		self.train_wgan = False
+		self.dataset_name = 'semi-gan'
 		self.data_loader = DataLoader(dataset_name=self.dataset_name,
 									  img_res=(self.img_rows, self.img_cols))
 
@@ -183,27 +184,33 @@ class Pix2Pix():
 
 		for epoch in range(epochs):
 			for batch_i, (imgs_A, imgs_B, _) in enumerate(self.data_loader.load_batch(batch_size, is_testing=False)):
-
-				if batch_i % 5 == 0:
-				# for _ in range(self.n_critic):
-
+				
 				# ---------------------
 				#  Train Discriminator
 				# ---------------------
 
+				if not self.train_wgan:
+					if batch_i % 5 == 0:
 					# Condition on B and generate a translated version
-					fake_A = self.generator.predict(imgs_B)
+						fake_A = self.generator.predict(imgs_B)
 
-					# Train the discriminators (original images = real / generated = Fake)
-					d_loss_real = self.discriminator.train_on_batch([np.array(imgs_A), np.array(imgs_B)], np.array(valid))
-					d_loss_fake = self.discriminator.train_on_batch([np.array(fake_A), np.array(imgs_B)], np.array(fake))
-					d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
-					# Clip critic weights
-					# for l in self.discriminator.layers:
-					# 	weights = l.get_weights()
-					# 	weights = [np.clip(w, -self.clip_value, self.clip_value) for w in weights]
-					# 	l.set_weights(weights)
+						# Train the discriminators (original images = real / generated = Fake)
+						d_loss_real = self.discriminator.train_on_batch([np.array(imgs_A), np.array(imgs_B)], np.array(valid))
+						d_loss_fake = self.discriminator.train_on_batch([np.array(fake_A), np.array(imgs_B)], np.array(fake))
+						d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+				else:
+					for _ in range(self.n_critic):
+						fake_A = self.generator.predict(imgs_B)
 
+						# Train the discriminators (original images = real / generated = Fake)
+						d_loss_real = self.discriminator.train_on_batch([np.array(imgs_A), np.array(imgs_B)], np.array(valid))
+						d_loss_fake = self.discriminator.train_on_batch([np.array(fake_A), np.array(imgs_B)], np.array(fake))
+						d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+						# Clip critic weights
+						for l in self.discriminator.layers:
+							weights = l.get_weights()
+							weights = [np.clip(w, -self.clip_value, self.clip_value) for w in weights]
+							l.set_weights(weights)
 
 				# -----------------
 				#  Train Generator
@@ -214,15 +221,6 @@ class Pix2Pix():
 				elapsed_time = datetime.datetime.now() - start_time
 				self.write_log(epoch, batch_i, g_loss, d_loss)
 
-				# if d_loss[0] < best_d_loss:
-				# 	best_d_loss = d_loss[0]
-				# 	# print("Saving best discriminator model at epoch %d/%d - [D loss: %f, acc: %3d%%]" % (epoch, epochs,  d_loss[0], 100*d_loss[1]))
-				# 	self.discriminator.save_weights("saved_model/%s/%s" % (self.dataset_name, 'best-d-' + str(epoch) + '.h5'))
-				# if g_loss[1] < best_g_loss:
-				# 	best_g_loss = g_loss[-1]
-				# 	# print("Saving best generator model at epoch %d/%d - [G loss: %f, acc: %3d%%]" % (epoch, epochs,  g_loss[0], 100*g_loss[1]))
-				# 	self.generator.save_weights("saved_model/%s/%s" % (self.dataset_name, 'best-g-' + str(epoch) + '.h5'))  
-				# Plot the progress
 				print("[Epoch %d/%d] [Batch %d/%d] [D loss: %f, acc: %3d%%] [G loss: %f] time: %s" % (epoch, epochs,
 																		batch_i, self.data_loader.n_batches,
 																		d_loss[0], 100*d_loss[1],
@@ -232,9 +230,7 @@ class Pix2Pix():
 				# If at save interval => save generated image samples
 				if batch_i % sample_interval == 0:
 					self.sample_images(epoch, batch_i)
-		# Save final weights
-		# self.discriminator.save_weights("saved_model/%s/%s" % (self.dataset_name, 'best-d-final.h5'))
-		# self.generator.save_weights("saved_model/%s/%s" % (self.dataset_name, 'best-g-final.h5'))  
+
 
 	def sample_images(self, epoch, batch_i):
 		os.makedirs('images/%s' % self.dataset_name, exist_ok=True)
@@ -282,27 +278,6 @@ class Pix2Pix():
 				axs[i].set_title(titles[i])
 				axs[i].axis('off')
 				cnt += 1
-				# if (i == 0):
-				# 	axs[i,j].imshow(imgs_B[j].astype(np.uint8))
-				# if (i == 1):
-				# 	fake_A_new = np.zeros((fake_A[j].shape[0], fake_A[j].shape[1], 3))
-				# 	for a in range(0, fake_A[j].shape[0]):
-				# 		for b in range(0, fake_A[j].shape[1]):
-				# 			fake_A_new[a, b, :] = LABELMAP_RGB[np.argmax(fake_A[j][a,b,:])]
-				# 	cv2.imwrite("images/%s/output/generated_%d_%d_%d.png" % (self.dataset_name, cnt, epoch, batch_i),fake_A_new.astype(np.uint8))
-				# 	axs[i,j].imshow(fake_A_new.astype(np.uint8))
-				# if (i == 2):
-				# 	img_A_new = np.zeros((imgs[j].shape[0], imgs[j].shape[1], 3))
-				# 	for a in range(0, imgs[j].shape[0]):
-				# 		for b in range(0, imgs[j].shape[1]):
-				# 			img_A_new[a, b, :][0] = imgs[j][a, b, :][2]
-				# 			img_A_new[a, b, :][1] = imgs[j][a, b, :][1]
-				# 			img_A_new[a, b, :][2] = imgs[j][a, b, :][0]
-				# 	cv2.imwrite("images/%s/output/original_%d_%d_%d.png" % (self.dataset_name, cnt, epoch, batch_i),img_A_new.astype(np.uint8))
-				# 	axs[i,j].imshow(img_A_new.astype(np.uint8))
-				# axs[i, j].set_title(titles[i])
-				# axs[i,j].axis('off')
-				# cnt += 1
 		fig.savefig("images/%s/%d_%d.png" % (self.dataset_name, epoch, batch_i))
 		# fig.savefig(os.path.join(wandb.run.dir, "%d_%d.png" % (epoch, batch_i)))
 		plt.close()
@@ -318,7 +293,10 @@ if __name__ == '__main__':
 		'batch_size': batch_size,
 		'sample_interval': sample_interval
 	}
+	# Replace with dataset to train
+	gan.dataset_name = "pix2pix" 
+	# gain.train_wgan = True
 	# wandb.init(config=config)
 	gan.train(epochs=epochs, batch_size=batch_size, sample_interval=sample_interval)
-	score, _ = score_predictions("semi-gan-final")
+	score, _ = score_predictions(gan.dataset_name)
 	print(score)
