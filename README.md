@@ -99,13 +99,17 @@ This is an example of how to list things you need to use the software and how to
   ```sh
   python3 pix2pix.py
   ```
+  
+## Supervisor
+
+[Dr. Simon Deman](https://staff.qut.edu.au/staff/s.denman) - Science & Engineering Faculty - QUT
 
 <!-- CONTACT -->
 ## Contact
 
 Harry Tran - huytran.quang080199@gmail.com
 
-Project Link: [https://github.com/tranquanghuy0801/deer-pix2pix](https://github.com/tranquanghuy0801/deer-pix2pix)
+Project Link: [https://github.com/tranquanghuy0801/scene-segmentation](https://github.com/tranquanghuy0801/scene-segmentation)
 
 <!-- ACKNOWLEDGEMENTS -->
 ## Acknowledgements
